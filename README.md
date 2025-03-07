@@ -3,10 +3,11 @@
 </h4>
 
 Here is a sample config with the new setup for Dahua cameras tested with Unifi Protect.
-Each camera shows as "RESTREAM" as the model + name.
+Each camera shows as "RESTREAM" as the model + name. You will need a different instance + port setup for each fake ONVIF camera.
 
 Do note that Unifi Protect uses MAC addresses, not device serial numbers, to differentiate cameras.
-I solved this with some scuffed terminal commands in my Ubuntu setup (also below)
+I solved this with some scuffed terminal commands in my Ubuntu setup (also below), along with this library
+  https://github.com/JsBergbau/BindToInterface
 
 ```yaml
 streams:
@@ -40,6 +41,10 @@ sudo ip link add "fake_adapter" link <real_adapter> address "AA:AA:AA:AA:AA:01" 
 sudo ip link set "fake_adapter" up
 sudo ip addr add "123:123:123:123/24" dev "fake_adapter"
 <add relevant firewall allowances here + reload>
+```
+if you have BindToInterface, launch an instance of Go2RTC for each ONVIF restream with
+```sh
+  BIND_INTERFACE=fake_adapter LD_PRELOAD=bindToInterface.so ./go2rtc --config your_config.yaml
 ```
 
 <h1 align="center">
