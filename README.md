@@ -1,3 +1,38 @@
+<h4>
+  This is a poorly hacked-together ONVIF multi-stream capable version. As my first foray into GO, its probably disgusting.
+</h4>
+<h5>
+  Here is a sample config with the new setup for Dahua cameras tested with Unifi Protect
+</h5>
+
+```yaml
+streams:
+  sub_stream: #normal RTSP addition
+    - rtsp://username:password@123.123.123.123/cam/realmonitor?channel=1&subtype=1
+  primary_stream: #ffmpeg transcoding
+    - ffmpeg:rtsp://username:password@123.123.123.123/cam/realmonitor?channel=1&subtype=0#video=h265#hardware
+
+#Stuff down here can be set to whatever, but keeping it accurate to the real cameras gives NVRs an idea what theyre working with
+onvif:
+  deviceName: "RESTREAM"
+  deviceSerial: "00:00:00:00:00:01"
+  deviceMaxHeight: 1440
+  deviceMaxWidth: 2560
+  deviceMaxFramerate: 30
+  streams:
+    primary_stream:
+      height: 1440
+      width: 2560
+      framerate: 30
+      bitrate: 4096
+    sub_stream:
+      height: 480
+      width: 704
+      framerate: 30
+      bitrate: 1024
+```
+
+
 <h1 align="center">
 
   ![go2rtc](assets/logo.gif)
