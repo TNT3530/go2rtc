@@ -41,6 +41,12 @@ sudo ip link add "fake_adapter" link <real_adapter> address "AA:AA:AA:AA:AA:01" 
 sudo ip link set "fake_adapter" up
 sudo ip addr add "123:123:123:123/24" dev "fake_adapter"
 <add relevant firewall allowances here + reload>
+
+you may also need to change some flags in Ubuntu to make the MACs not fight each other
+sudo /etc/sysctl.conf
+  net.ipv4.conf.all.rp_filter=2
+  net.ipv4.conf.all.arp_announce=2
+  net.ipv4.conf.all.arp_ignore=1
 ```
 if you have BindToInterface, launch an instance of Go2RTC for each ONVIF restream with
 ```sh
