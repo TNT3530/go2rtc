@@ -1,9 +1,12 @@
 <h4>
   This is a poorly hacked-together ONVIF multi-stream capable version. As my first foray into GO, its probably disgusting.
 </h4>
-<h5>
-  Here is a sample config with the new setup for Dahua cameras tested with Unifi Protect
-</h5>
+
+Here is a sample config with the new setup for Dahua cameras tested with Unifi Protect.
+Each camera shows as "RESTREAM" as the model + name.
+
+Do note that Unifi Protect uses MAC addresses, not device serial numbers, to differentiate cameras.
+I solved this with some scuffed terminal commands in my Ubuntu setup (also below)
 
 ```yaml
 streams:
@@ -31,7 +34,13 @@ onvif:
       framerate: 30
       bitrate: 1024
 ```
-
+Do note the following _does not persist reboots_, it only temporarily does the thing
+```sh
+sudo ip link add "fake_adapter" link <real_adapter> address "AA:AA:AA:AA:AA:01" type macvlan mode bridge
+sudo ip link set "fake_adapter" up
+sudo ip addr add "123:123:123:123/24" dev "fake_adapter"
+<add relevant firewall allowances here + reload>
+```
 
 <h1 align="center">
 
