@@ -18,8 +18,41 @@ import (
 	"github.com/rs/zerolog"
 )
 
+type Stream struct {
+	StreamWidth string `yaml:"width"`
+	StreamHeight string `yaml:"height"`
+	StreamFramerate string `yaml:"framerate"`
+	StreamBitrate string `yaml:"bitrate"`
+}
+
+var conf struct {
+	Mod struct {
+		Streams map[string]Stream `yaml:"streams"`
+		DeviceName string `yaml:"deviceName"`
+		DeviceSerial string `yaml:"deviceSerial"`
+		DeviceMaxHeight string `yaml:"deviceMaxHeight"`
+		DeviceMaxWidth string `yaml:"deviceMaxWidth"`
+		DeviceMaxFramerate string `yaml:"deviceMaxFramerate"`
+	} `yaml:"onvif"`
+	StreamNames []string
+}
+	
 func Init() {
+	conf.Mod.DeviceName = "go2rtc_default"
+	conf.Mod.DeviceSerial = "00000000"
+
+	app.LoadConfig(&conf)
+	app.Info["onvif"] = conf.Mod
+
 	log = app.GetLogger("onvif")
+	
+	conf.StreamNames = make([]string, len(conf.Mod.Streams))
+	var i int = 0
+	for name, _ := range conf.Mod.Streams {
+		//fmt.Printf("%+v\n", item)
+		conf.StreamNames[i] = name
+		i++
+	}
 
 	streams.HandleFunc("onvif", streamOnvif)
 
@@ -84,7 +117,8 @@ func onvifDeviceService(w http.ResponseWriter, r *http.Request) {
 
 	case onvif.DeviceGetDeviceInformation:
 		// important for Hass: SerialNumber (unique server ID)
-		b = onvif.GetDeviceInformationResponse("", "go2rtc", app.Version, r.Host)
+		//manuf, model, firmware, serial string
+		b = onvif.GetDeviceInformationResponse("", conf.Mod.DeviceName, app.Version, conf.Mod.DeviceSerial)
 
 	case onvif.ServiceGetServiceCapabilities:
 		// important for Hass
@@ -99,11 +133,13 @@ func onvifDeviceService(w http.ResponseWriter, r *http.Request) {
 		})
 
 	case onvif.MediaGetVideoSources:
-		b = onvif.GetVideoSourcesResponse(streams.GetAllNames())
+		//b = onvif.GetVideoSourcesResponse(streams.GetAllNames())
+		b = GetVideoSourcesResponse_c()
 
 	case onvif.MediaGetProfiles:
 		// important for Hass: H264 codec, width, height
-		b = onvif.GetProfilesResponse(streams.GetAllNames())
+		//b = onvif.GetProfilesResponse(streams.GetAllNames())
+		b = GetProfilesResponse_c(conf.StreamNames)
 
 	case onvif.MediaGetProfile:
 		token := onvif.FindTagValue(b, "ProfileToken")
@@ -139,6 +175,52 @@ func onvifDeviceService(w http.ResponseWriter, r *http.Request) {
 	if _, err = w.Write(b); err != nil {
 		log.Error().Err(err).Caller().Send()
 	}
+}
+
+func GetProfilesResponse_c(names []string) []byte {
+	e := onvif.NewEnvelope()
+	e.Append(`<trt:GetProfilesResponse>
+`)
+	for _, name := range names {
+		appendProfile_c(e, "Profiles", name)
+	}
+	e.Append(`</trt:GetProfilesResponse>`)
+	return e.Bytes()
+}
+
+func appendProfile_c(e *onvif.Envelope, tag, name string) {
+	// empty `RateControl` important for UniFi Protect
+	e.Append(`<trt:`, tag, ` token="`, name, `" fixed="true">
+	<tt:Name>`, name, `</tt:Name>
+	<tt:VideoSourceConfiguration token="`, conf.Mod.DeviceName, `">
+		<tt:Name>VSC</tt:Name>
+		<tt:SourceToken>`, conf.Mod.DeviceName, `</tt:SourceToken>
+		<tt:Bounds x="0" y="0" width="`, conf.Mod.Streams[name].StreamWidth, `" height="`, conf.Mod.Streams[name].StreamHeight, `"></tt:Bounds>
+	</tt:VideoSourceConfiguration>
+	<tt:VideoEncoderConfiguration token="`, name, `">
+		<tt:Name>VEC</tt:Name>
+		<tt:Encoding>H264</tt:Encoding>
+		<tt:Resolution><tt:Width>`, conf.Mod.Streams[name].StreamWidth, `</tt:Width><tt:Height>`, conf.Mod.Streams[name].StreamHeight, `</tt:Height></tt:Resolution>
+		<tt:RateControl>
+			<tt:FrameRateLimit>`, conf.Mod.Streams[name].StreamFramerate, `</tt:FrameRateLimit>
+			<tt:BitrateLimit>`, conf.Mod.Streams[name].StreamBitrate, `</tt:BitrateLimit>
+		</tt:RateControl>
+	</tt:VideoEncoderConfiguration>
+</trt:`, tag, `>
+`)
+}
+
+func GetVideoSourcesResponse_c() []byte {
+	e := onvif.NewEnvelope()
+	e.Append(`<trt:GetVideoSourcesResponse>
+`)
+	e.Append(`<trt:VideoSources token="`, conf.Mod.DeviceName, `">
+	<tt:Framerate>`, conf.Mod.DeviceMaxFramerate, `</tt:Framerate>
+	<tt:Resolution><tt:Width>`, conf.Mod.DeviceMaxWidth, `</tt:Width><tt:Height>`, conf.Mod.DeviceMaxHeight, `</tt:Height></tt:Resolution>
+</trt:VideoSources>
+`)
+	e.Append(`</trt:GetVideoSourcesResponse>`)
+	return e.Bytes()
 }
 
 func apiOnvif(w http.ResponseWriter, r *http.Request) {
